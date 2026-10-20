@@ -10,41 +10,45 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Download repository
         uses: actions/checkout@v4
 
-      - name: Extract WakeLog project
+      - name: Extract Android project
         run: |
-          unzip WakeLog_APK_Builder.zip
-          cp -r WakeLog_APK_Builder/. .
-          
+          unzip -q WakeLog_APK_Builder.zip -d /tmp/wakelog
+          cp -a /tmp/wakelog/WakeLog_APK_Builder/app .
+          cp /tmp/wakelog/WakeLog_APK_Builder/build.gradle .
+          cp /tmp/wakelog/WakeLog_APK_Builder/settings.gradle .
+          cp /tmp/wakelog/WakeLog_APK_Builder/gradle.properties .
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" --licenses || true
+
+      - name: Install Android SDK components
+        run: |
+          "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
-
-      - name: Install Android components
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
       - name: Build APK
-        run: gradle assembleDebug
+        run: gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: WakeLog-APK
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
           
